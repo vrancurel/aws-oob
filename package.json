@@ -1,0 +1,27 @@
+{
+  "name": "awsoob",
+  "version": "1.0.0",
+  "description": "AWS out-of-band updates",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vrancurel/awsoob.git"
+  },
+  "dependencies": {
+      "async": "^2.6.0",
+      "aws-sdk": "2.28.0"
+  },
+  "keywords": [
+    "aws",
+    "oob"
+  ],
+  "author": "Vianney Rancurel",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/vrancurel/awsoob/issues"
+  },
+  "homepage": "https://github.com/vrancurel/awsoob#readme"
+}
