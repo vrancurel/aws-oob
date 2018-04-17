@@ -1,6 +1,7 @@
 var AWS = require('aws-sdk');
 var sns = new AWS.SNS();
 var sqs = new AWS.SQS({apiVersion: '2012-11-05'});
+var s3 = new AWS.S3();
 var util = require('util');
 var async = require('async');
 
@@ -97,7 +98,7 @@ function subscribe(topicArn, queueArn, cb) {
     });
 }
 
-function allowTopicToWriteToQueue(queueUrl, queueArn, topicArn, cb) {
+function allowTopicToWriteToQueue(queueUrl, topicArn, queueArn, cb) {
     var attributes = {
         "Version": "2008-10-17",
         "Id": queueArn + "/SQSDefaultPolicy",
@@ -126,7 +127,78 @@ function allowTopicToWriteToQueue(queueUrl, queueArn, topicArn, cb) {
         if (err) {
             return cb(err);
         }
-        return cb(result);
+        return cb(null, result);
+    });
+}
+
+function allowS3ToWriteToTopic(bucketName, topicArn, cb) {
+    var attributes = {
+        "Version": "2008-10-17",
+        "Id": topicArn + "/SQSDefaultPolicy",
+        "Statement": [{
+            "Sid": "Sid" + new Date().getTime(),
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "*"
+            },
+            "Action": "SNS:Publish",
+            "Resource": topicArn,
+            "Condition": {
+                "ArnLike": {
+                    "aws:SourceArn": `arn:aws:s3:*:*:${bucketName}`
+                }
+            }
+        }
+                     ]};
+
+    sns.setTopicAttributes({
+        TopicArn: topicArn,
+        AttributeName: 'Policy',
+        AttributeValue: JSON.stringify(attributes)
+    }, (err, result) => {
+        if (err) {
+            return cb(err);
+        }
+        return cb(null, result);
+    });
+}
+
+/** 
+ * Register events
+ * 
+ * @param bucketName 
+ * @param queueArn
+ * @param topicArn
+ * @param events an array of
+ * [ s3:ReducedRedundancyLostObject | s3:ObjectCreated:* |
+ * s3:ObjectCreated:Put | s3:ObjectCreated:Post |
+ * s3:ObjectCreated:Copy | s3:ObjectCreated:CompleteMultipartUpload |
+ * s3:ObjectRemoved:* | s3:ObjectRemoved:Delete |
+ * s3:ObjectRemoved:DeleteMarkerCreated ]
+ * @param cb
+ * 
+ * @return 
+ */
+function putBucketNotification(bucketName, queueArn, topicArn, events, cb) {
+    var params = {
+        Bucket: bucketName,
+        NotificationConfiguration: {
+            /*QueueConfiguration: {
+                Events: events,
+                Queue: queueArn
+            },*/
+            TopicConfiguration: {
+                Event: 's3:ReducedRedundancyLostObject', // seem a best practice???
+                Topic: topicArn
+            }
+        }
+    };
+
+    s3.putBucketNotification(params, (err, data) => {
+        if (err) {
+            return cb(err);
+        }
+        return cb(null, data)
     });
 }
 
@@ -134,6 +206,15 @@ function allowTopicToWriteToQueue(queueUrl, queueArn, topicArn, cb) {
 
 const QUEUE_NAME = 'foo_queue';
 const TOPIC_NAME = 'foo_topic';
+
+if (process.argv.length != 3) {
+    console.log('usage: index bucket');
+    process.exit(1);
+}
+
+const BUCKET_NAME = process.argv[2];
+
+console.log('BUCKET_NAME', BUCKET_NAME);
 
 async.waterfall([
     (callback) => {
@@ -159,16 +240,44 @@ async.waterfall([
     },
     (queueUrl, queueArn, topicArn, callback) => {
         console.log('topicArn', topicArn);
-        subscribe(topicArn, queueArn, (err, result) => {
+        /*subscribe(topicArn, queueArn, (err, result) => {
+            if (err) {
+                return callback(err);
+            }
+            return callback(null, queueUrl, queueArn, topicArn, result);
+            });*/
+        return callback(null, queueUrl, queueArn, topicArn, null);
+    },
+    (queueUrl, queueArn, topicArn, subscribeResult, callback) => {
+        console.log('subscribeResult', subscribeResult);
+        /*allowTopicToWriteToQueue(queueUrl, topicArn, queueArn, (err, result) => {
+            if (err) {
+                return callback(err);
+            }
+            return callback(null, queueUrl, queueArn, topicArn, result);
+        });*/
+        return callback(null, queueUrl, queueArn, topicArn, null);
+    },
+    (queueUrl, queueArn, topicArn, allowResult, callback) => {
+        console.log('allowResult1', allowResult);
+        allowS3ToWriteToTopic(BUCKET_NAME, topicArn, (err, result) => {
             if (err) {
                 return callback(err);
             }
             return callback(null, queueUrl, queueArn, topicArn, result);
         });
     },
-    (queueUrl, queueArn, topicArn, subscribeResult, callback) => {
-        console.log('subscribeResult', subscribeResult);
-        allowTopicToWriteToQueue(queueUrl, queueArn, topicArn, callback);
+    (queueUrl, queueArn, topicArn, allowResult, callback) => {
+        console.log('allowResult2', allowResult);
+        putBucketNotification(BUCKET_NAME, queueArn, topicArn, [
+            's3:ObjectCreated:*'
+        ], (err, data) => {
+            if (err) {
+                return callback(err);
+            }
+            console.log(data);
+            return callback(null, queueUrl, queueArn);
+        });
     }
 ], (err, result) => {
     if (err) {
