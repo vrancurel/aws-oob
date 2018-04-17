@@ -188,7 +188,7 @@ function putBucketNotification(bucketName, queueArn, topicArn, events, cb) {
                 Queue: queueArn
             },*/
             TopicConfiguration: {
-                Event: 's3:ReducedRedundancyLostObject', // seem a best practice???
+                Events: events,
                 Topic: topicArn
             }
         }
@@ -240,23 +240,21 @@ async.waterfall([
     },
     (queueUrl, queueArn, topicArn, callback) => {
         console.log('topicArn', topicArn);
-        /*subscribe(topicArn, queueArn, (err, result) => {
+        subscribe(topicArn, queueArn, (err, result) => {
             if (err) {
                 return callback(err);
             }
             return callback(null, queueUrl, queueArn, topicArn, result);
-            });*/
-        return callback(null, queueUrl, queueArn, topicArn, null);
+        });
     },
     (queueUrl, queueArn, topicArn, subscribeResult, callback) => {
         console.log('subscribeResult', subscribeResult);
-        /*allowTopicToWriteToQueue(queueUrl, topicArn, queueArn, (err, result) => {
+        allowTopicToWriteToQueue(queueUrl, topicArn, queueArn, (err, result) => {
             if (err) {
                 return callback(err);
             }
             return callback(null, queueUrl, queueArn, topicArn, result);
-        });*/
-        return callback(null, queueUrl, queueArn, topicArn, null);
+        });
     },
     (queueUrl, queueArn, topicArn, allowResult, callback) => {
         console.log('allowResult1', allowResult);
