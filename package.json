@@ -1,5 +1,5 @@
 {
-  "name": "awsoob",
+  "name": "aws-oob",
   "version": "1.0.0",
   "description": "AWS out-of-band updates",
   "main": "index.js",
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vrancurel/awsoob.git"
+    "url": "git+https://github.com/vrancurel/aws-oob.git"
   },
   "dependencies": {
       "async": "^2.6.0",
@@ -23,5 +23,5 @@
   "bugs": {
     "url": "https://github.com/vrancurel/awsoob/issues"
   },
-  "homepage": "https://github.com/vrancurel/awsoob#readme"
+  "homepage": "https://github.com/vrancurel/aws-oob#readme"
 }
